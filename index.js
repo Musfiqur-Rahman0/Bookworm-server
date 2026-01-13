@@ -141,6 +141,17 @@ async function run() {
       }
     });
 
+    app.delete("/users:id", varifyAccessToken, varifyAdmin, async (req, res)=> {
+      try {
+        const {id} = req.params;
+        const query = {_id : new  ObjectId(id)}
+        const result  = await usersCollection.deleteOne(query)
+        res.status(200).send(result)
+      } catch (error) {
+        res.status(500).send({message : "Unable to update the user", error})
+      }
+    })
+
     app.post("/login", async (req, res) => {
       try {
         const { email, password } = req.body;
@@ -384,7 +395,17 @@ async function run() {
       } catch (error) {
          res.status(500).send({ message: "Failed to update genre", error })
       }
-    })
+    });
+
+
+
+
+
+
+
+
+
+
 
 
 

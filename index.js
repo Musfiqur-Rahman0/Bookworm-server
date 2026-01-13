@@ -3,14 +3,14 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const cookieParser  = require("cookie-parser")
+const cookieParser = require("cookie-parser");
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const e = require("express");
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors({ origin: "http://localhost:5173" , credentials: true }));
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -24,8 +24,6 @@ const client = new MongoClient(uri, {
   },
 });
 
-
-
 async function run() {
   try {
     await client.connect();
@@ -36,59 +34,57 @@ async function run() {
     const booksCollection = db.collection("books");
     const reviewsCollection = db.collection("reviews");
     const genreCollection = db.collection("genre");
+    const tutorialCollection = db.collection("tutorials");
 
-
-    const varifyAccessToken = async (req, res, next) =>{
+    const varifyAccessToken = async (req, res, next) => {
       const authHeader = req.headers.authorization;
-      
 
-      if(!authHeader){
-        return res.status(401).send({message : "unauthorized access"})
+      if (!authHeader) {
+        return res.status(401).send({ message: "unauthorized access" });
       }
-      const token  = authHeader.split(" ")[1];
-  
-      if(!token){
-          return res.status(401).send({message : "unauthorized access"})
+      const token = authHeader.split(" ")[1];
+
+      if (!token) {
+        return res.status(401).send({ message: "unauthorized access" });
       }
-      try{
-         const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret_key");
+      try {
+        const decoded = jwt.verify(
+          token,
+          process.env.JWT_SECRET || "your_jwt_secret_key"
+        );
         req.user = decoded;
 
-    next();
-      }catch(error){
+        next();
+      } catch (error) {
         res.status(403).send({ message: "forbidden access" });
       }
+    };
 
-    
-    }
-
-     const varifyAdmin = async (req, res, next) => {
-     
-      const {role} = req.user;
-      if(!role || role !== "admin"){
+    const varifyAdmin = async (req, res, next) => {
+      const { role } = req.user;
+      if (!role || role !== "admin") {
         return res.status(403).send({
-          message : "forbidden access"
-        })
+          message: "forbidden access",
+        });
       }
       next();
     };
 
-    const varifyMember  = async(req, res, next) => {
-      const {role} = req?.user;
-      if(!role || role !== "user"){
+    const varifyMember = async (req, res, next) => {
+      const { role } = req?.user;
+      if (!role || role !== "user") {
         return res.status(403).send({
-          message : "forbidden access"
-        })
+          message: "forbidden access",
+        });
       }
-      next()
-    }
-
+      next();
+    };
 
     app.get("/", async (req, res) => {
       res.send("Book-worm  server is getting ready...");
     });
 
-    app.post("/users",  async (req, res) => {
+    app.post("/users", async (req, res) => {
       try {
         const newUser = req.body;
 
@@ -141,21 +137,25 @@ async function run() {
       }
     });
 
-    app.delete("/users:id", varifyAccessToken, varifyAdmin, async (req, res)=> {
-      try {
-        const {id} = req.params;
-        const query = {_id : new  ObjectId(id)}
-        const result  = await usersCollection.deleteOne(query)
-        res.status(200).send(result)
-      } catch (error) {
-        res.status(500).send({message : "Unable to update the user", error})
+    app.delete(
+      "/users:id",
+      varifyAccessToken,
+      varifyAdmin,
+      async (req, res) => {
+        try {
+          const { id } = req.params;
+          const query = { _id: new ObjectId(id) };
+          const result = await usersCollection.deleteOne(query);
+          res.status(200).send(result);
+        } catch (error) {
+          res.status(500).send({ message: "Unable to update the user", error });
+        }
       }
-    })
+    );
 
     app.post("/login", async (req, res) => {
       try {
         const { email, password } = req.body;
-       
 
         const user = await usersCollection.findOne({ email });
         const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -172,7 +172,7 @@ async function run() {
 
           { expiresIn: "1d" }
         );
-        
+
         const refreshToken = jwt.sign(
           { id: user._id },
           process.env.JWT_REFRESH_SECRET,
@@ -190,7 +190,10 @@ async function run() {
           maxAge: 7 * 24 * 60 * 60 * 1000, //7 days
         });
 
-        res.send({ accessToken, user: { id: user._id, email: user.email, role: user.role } });
+        res.send({
+          accessToken,
+          user: { id: user._id, email: user.email, role: user.role },
+        });
       } catch (error) {
         res.status(500).send({ message: "Login failed", error });
       }
@@ -203,7 +206,7 @@ async function run() {
           return res.status(400).send({ message: "No refresh token provided" });
         }
         const user = await usersCollection.findOne({ refreshToken: token });
-       
+
         if (!user) {
           return res.status(401).send({ message: "Invalid refresh token" });
         }
@@ -221,7 +224,10 @@ async function run() {
           process.env.JWT_SECRET,
           { expiresIn: "1d" }
         );
-        res.send({ accessToken: newAccessToken, user: { id: user._id, email: user.email, role: user.role }});
+        res.send({
+          accessToken: newAccessToken,
+          user: { id: user._id, email: user.email, role: user.role },
+        });
       } catch (error) {
         res.status(500).send({ message: "Token generation failed", error });
       }
@@ -245,8 +251,8 @@ async function run() {
       }
     });
 
-    app.get("/books", varifyAccessToken, async(req, res)=> {
-         try {
+    app.get("/books", varifyAccessToken, async (req, res) => {
+      try {
         const { page, limit } = req.query;
 
         const pageInNumber = Number(page) || 1;
@@ -269,13 +275,12 @@ async function run() {
           totalPages: Math.ceil(total / limitInNumber),
           totalCourts: total,
         });
-
       } catch (error) {
         res.status(500).send({ message: "Error getting courts data", error });
       }
     });
 
-     app.get("/books/:id", varifyAccessToken, async (req, res) => {
+    app.get("/books/:id", varifyAccessToken, async (req, res) => {
       try {
         const { id } = req.params;
         const query = {
@@ -289,130 +294,173 @@ async function run() {
       }
     });
 
-    app.post("/books", varifyAccessToken, varifyAdmin, async(req, res)=> {
-       try {
+    app.post("/books", varifyAccessToken, varifyAdmin, async (req, res) => {
+      try {
         const newBook = req.body;
         const result = await booksCollection.insertOne(newBook);
         res.status(201).send(result);
       } catch (error) {
-         res.status(500).send({ message: "Error posting books data", error });
+        res.status(500).send({ message: "Error posting books data", error });
       }
     });
 
-    app.put("/books/:id", varifyAccessToken, varifyAdmin, async(req, res)=> {
-        try {
-          const { id } = req.params;
-          const updatedBook = req.body;
-          const updatedDoc = {
-            $set: updatedBook,
-          };
-          const query = { _id: new ObjectId(id) };
-          const result = await booksCollection.updateOne(query, updatedDoc);
-          res.send(result);
-        } catch (error) {
-          res.status(500).send({ message: "error updating court", error });
-        }
-    });
-
-    app.patch("/books/:id", varifyAccessToken, varifyAdmin, async (req, res) => {
+    app.put("/books/:id", varifyAccessToken, varifyAdmin, async (req, res) => {
       try {
         const { id } = req.params;
-        const { inStock } = req.body;
-
-        const query = {
-          _id: new ObjectId(id),
+        const updatedBook = req.body;
+        const updatedDoc = {
+          $set: updatedBook,
         };
-        
-        const updateDoc = { $set: { inStock } };
-        const result = await booksCollection.updateOne(query, updateDoc);
-
-        if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "Book not found" });
-        }
-
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({ message: "Error updating data", error });
-      }
-    });
-
-    app.delete("/book/:id", varifyAccessToken, varifyAdmin, async(req, res)=> {
-         try {
-        const { id } = req.params;
         const query = { _id: new ObjectId(id) };
-        const result = await booksCollection.deleteOne(query);
+        const result = await booksCollection.updateOne(query, updatedDoc);
         res.send(result);
       } catch (error) {
-        res.status(500).send({ message: "error deleting data", error });
+        res.status(500).send({ message: "error updating court", error });
       }
     });
 
+    app.patch(
+      "/books/:id",
+      varifyAccessToken,
+      varifyAdmin,
+      async (req, res) => {
+        try {
+          const { id } = req.params;
+          const { inStock } = req.body;
 
-    app.get("/genre", varifyAccessToken, async(req, res)=> {
-         try {
+          const query = {
+            _id: new ObjectId(id),
+          };
+
+          const updateDoc = { $set: { inStock } };
+          const result = await booksCollection.updateOne(query, updateDoc);
+
+          if (result.matchedCount === 0) {
+            return res.status(404).send({ message: "Book not found" });
+          }
+
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({ message: "Error updating data", error });
+        }
+      }
+    );
+
+    app.delete(
+      "/book/:id",
+      varifyAccessToken,
+      varifyAdmin,
+      async (req, res) => {
+        try {
+          const { id } = req.params;
+          const query = { _id: new ObjectId(id) };
+          const result = await booksCollection.deleteOne(query);
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({ message: "error deleting data", error });
+        }
+      }
+    );
+
+    app.get("/genre", varifyAccessToken, async (req, res) => {
+      try {
         const genre = await genreCollection.find().toArray();
         res.status(200).send(genre);
       } catch (error) {
         res.status(500).send({ message: "Failed to fetch genre", error });
       }
-    })
+    });
 
-    app.post("/genre", varifyAccessToken, varifyAdmin, async(req, res)=> {
-         try {
-          const newGenre = req.body;
-        const result =  await booksCollection.insertOne(newGenre)
-           res.status(201).send(result);
-
+    app.post("/genre", varifyAccessToken, varifyAdmin, async (req, res) => {
+      try {
+        const newGenre = req.body;
+        const result = await booksCollection.insertOne(newGenre);
+        res.status(201).send(result);
       } catch (error) {
         res.status(500).send({ message: "Failed to fetch genre", error });
       }
     });
 
-    app.put("/genre/:id", varifyAccessToken, varifyAdmin, async(req, res)=> {
+    app.put("/genre/:id", varifyAccessToken, varifyAdmin, async (req, res) => {
       try {
-        const { id} = req.params;
-         const updatedGenre = req.body;
-          const updatedDoc = {
-            $set: updatedGenre,
-          };
+        const { id } = req.params;
+        const updatedGenre = req.body;
+        const updatedDoc = {
+          $set: updatedGenre,
+        };
 
-          const query = {_id : new ObjectId(id)};
-          const result = await genreCollection.updateOne(query, updatedDoc);
+        const query = { _id: new ObjectId(id) };
+        const result = await genreCollection.updateOne(query, updatedDoc);
 
-          res.status(201).send(result);
-        
+        res.status(201).send(result);
       } catch (error) {
-        res.status(500).send({ message: "Failed to fetch genre", error })
-      }
-    })
-
-    app.delete("/genre/:id", varifyAccessToken, async(req, res)=> {
-      try {
-        const {id} = req.params;
-         const query = { _id: new ObjectId(id) };
-          const result = await genreCollection.deleteOne(query);
-          res.status(204).send(result);
-      } catch (error) {
-         res.status(500).send({ message: "Failed to update genre", error })
+        res.status(500).send({ message: "Failed to fetch genre", error });
       }
     });
 
+    app.delete("/genre/:id", varifyAccessToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const query = { _id: new ObjectId(id) };
+        const result = await genreCollection.deleteOne(query);
+        res.status(204).send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to update genre", error });
+      }
+    });
 
+    app.get("/tutorials", varifyAccessToken, async (req, res) => {
+      try {
+        const tutorials = await tutorialCollection.find().toArray();
+        res.status(200).send(tutorials);
+      } catch (error) {
+        res.status(500).send({ message: "Unable to fetch tutorials", error });
+      }
+    });
 
+    app.post("/tutorials", varifyAccessToken, varifyAdmin, async (req, res) => {
+      try {
+        const newTutorial = req.body;
 
+        const result = await tutorialCollection.insertOne(newTutorial);
+        res.status(201).send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Unable to post tutorials", error });
+      }
+    });
 
+    app.delete("/tutorials/:id", varifyAccessToken, varifyAdmin,  async(req, res)=> {
+      try {
+          const {id} = req.params;
+          const query = {_id : new ObjectId(id)};
 
+          const result = await tutorialCollection.deleteOne(query)
+        res.status(204).send(result);
+      } catch (error) {
+        res.status(500).send({message : "Error deleting user", error})
+      }
+    }); 
 
+    app.put("/tutorials/:id", varifyAccessToken, varifyAdmin, async(req, res)=> {
+      try {
+        const {id}  = req.params;
+        const query = {id : new ObjectId(id)}
 
+        const updatedTutorials = req.body;
+        const updatedDoc = {
+          $set : updatedTutorials
+        }
+        const result = await tutorialCollection.updateOne(query, updatedDoc);
 
+        res.status(200).message(result);
+        
+      } catch (error) {
+        res.status(500).send({message : "Error updating the tutorials data", error})
+      }
+    })
 
-
-
-
-
-
-
-
+    
+    
   } catch (error) {
     res.status(500).send({ message: "Failed to fetch admin stats", error });
   } finally {

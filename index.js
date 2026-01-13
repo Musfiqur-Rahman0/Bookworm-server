@@ -3,14 +3,16 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const cookieParser  = require("cookie-parser")
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const e = require("express");
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(cors({ origin: "http://localhost:5173" , credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.nliquld.mongodb.net/?appName=Cluster0`;
 
@@ -92,7 +94,7 @@ async function run() {
     app.post("/login", async (req, res) => {
       try {
         const { email, password } = req.body;
-        console.log(email, password);
+       
 
         const user = await usersCollection.findOne({ email });
         const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -139,6 +141,7 @@ async function run() {
           return res.status(400).send({ message: "No refresh token provided" });
         }
         const user = await usersCollection.findOne({ refreshToken: token });
+       
         if (!user) {
           return res.status(401).send({ message: "Invalid refresh token" });
         }
@@ -156,7 +159,7 @@ async function run() {
           process.env.JWT_SECRET,
           { expiresIn: "1d" }
         );
-        res.send({ accessToken: newAccessToken });
+        res.send({ accessToken: newAccessToken, user: { id: user._id, email: user.email, role: user.role }});
       } catch (error) {
         res.status(500).send({ message: "Token generation failed", error });
       }

@@ -182,6 +182,8 @@ async function run() {
         res.status(500).send({ message: "Logout failed", error });
       }
     });
+
+    
   } catch (error) {
     res.status(500).send({ message: "Failed to fetch admin stats", error });
   } finally {

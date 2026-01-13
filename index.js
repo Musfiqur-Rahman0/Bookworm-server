@@ -24,6 +24,8 @@ const client = new MongoClient(uri, {
   },
 });
 
+
+
 async function run() {
   try {
     await client.connect();
@@ -34,11 +36,58 @@ async function run() {
     const booksCollection = db.collection("books");
     const reviewsCollection = db.collection("reviews");
 
+
+    const varifyAccessToken = async (req, res, next) =>{
+      const authHeader = req.headers.authorization;
+      
+
+      if(!authHeader){
+        return res.status(401).send({message : "unauthorized access"})
+      }
+      const token  = authHeader.split(" ")[1];
+  
+      if(!token){
+          return res.status(401).send({message : "unauthorized access"})
+      }
+      try{
+         const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret_key");
+        req.user = decoded;
+
+    next();
+      }catch(error){
+        res.status(403).send({ message: "forbidden access" });
+      }
+
+    
+    }
+
+     const varifyAdmin = async (req, res, next) => {
+     
+      const {role} = req.user;
+      if(!role || role !== "admin"){
+        return res.status(403).send({
+          message : "forbidden access"
+        })
+      }
+      next();
+    };
+
+    const varifyMember  = async(req, res, next) => {
+      const {role} = req?.user;
+      if(!role || role !== "user"){
+        return res.status(403).send({
+          message : "forbidden access"
+        })
+      }
+      next()
+    }
+
+
     app.get("/", async (req, res) => {
       res.send("Book-worm  server is getting ready...");
     });
 
-    app.post("/users", async (req, res) => {
+    app.post("/users",  async (req, res) => {
       try {
         const newUser = req.body;
 
@@ -82,7 +131,7 @@ async function run() {
       }
     });
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", varifyAccessToken, varifyAdmin, async (req, res) => {
       try {
         const users = await usersCollection.find().toArray();
         res.status(200).send(users);
@@ -111,6 +160,7 @@ async function run() {
 
           { expiresIn: "1d" }
         );
+        
         const refreshToken = jwt.sign(
           { id: user._id },
           process.env.JWT_REFRESH_SECRET,
@@ -182,6 +232,14 @@ async function run() {
         res.status(500).send({ message: "Logout failed", error });
       }
     });
+
+    app.get("/books", varifyAccessToken, varifyMember, async(req, res)=> {
+        res.send("book is coming")
+    })
+
+
+
+
 
     
   } catch (error) {

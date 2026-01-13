@@ -35,6 +35,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const booksCollection = db.collection("books");
     const reviewsCollection = db.collection("reviews");
+    const genreCollection = db.collection("genre");
 
 
     const varifyAccessToken = async (req, res, next) =>{
@@ -233,15 +234,164 @@ async function run() {
       }
     });
 
-    app.get("/books", varifyAccessToken, varifyMember, async(req, res)=> {
-        res.send("book is coming")
+    app.get("/books", varifyAccessToken, async(req, res)=> {
+         try {
+        const { page, limit } = req.query;
+
+        const pageInNumber = Number(page) || 1;
+        const limitInNumber = Number(limit) || 6;
+
+        const skip = (pageInNumber - 1) * limitInNumber;
+        const query = {};
+        const options = {
+          sort: { added_on: -1 },
+        };
+
+        const total = await booksCollection.countDocuments(query);
+        const courts = await booksCollection
+          .find(query, options)
+          .skip(skip)
+          .limit(limitInNumber)
+          .toArray();
+        res.send({
+          courts,
+          totalPages: Math.ceil(total / limitInNumber),
+          totalCourts: total,
+        });
+
+      } catch (error) {
+        res.status(500).send({ message: "Error getting courts data", error });
+      }
+    });
+
+     app.get("/books/:id", varifyAccessToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const query = {
+          _id: new ObjectId(id),
+        };
+
+        const singleBook = await booksCollection.findOne(query);
+        res.send(singleBook);
+      } catch (error) {
+        res.status(500).send({ message: "error getting data", error });
+      }
+    });
+
+    app.post("/books", varifyAccessToken, varifyAdmin, async(req, res)=> {
+       try {
+        const newBook = req.body;
+        const result = await booksCollection.insertOne(newBook);
+        res.status(201).send(result);
+      } catch (error) {
+         res.status(500).send({ message: "Error posting books data", error });
+      }
+    });
+
+    app.put("/books/:id", varifyAccessToken, varifyAdmin, async(req, res)=> {
+        try {
+          const { id } = req.params;
+          const updatedBook = req.body;
+          const updatedDoc = {
+            $set: updatedBook,
+          };
+          const query = { _id: new ObjectId(id) };
+          const result = await booksCollection.updateOne(query, updatedDoc);
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({ message: "error updating court", error });
+        }
+    });
+
+    app.patch("/books/:id", varifyAccessToken, varifyAdmin, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { inStock } = req.body;
+
+        const query = {
+          _id: new ObjectId(id),
+        };
+        
+        const updateDoc = { $set: { inStock } };
+        const result = await booksCollection.updateOne(query, updateDoc);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Book not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Error updating data", error });
+      }
+    });
+
+    app.delete("/book/:id", varifyAccessToken, varifyAdmin, async(req, res)=> {
+         try {
+        const { id } = req.params;
+        const query = { _id: new ObjectId(id) };
+        const result = await booksCollection.deleteOne(query);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "error deleting data", error });
+      }
+    });
+
+
+    app.get("/genre", varifyAccessToken, async(req, res)=> {
+         try {
+        const genre = await genreCollection.find().toArray();
+        res.status(200).send(genre);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to fetch genre", error });
+      }
+    })
+
+    app.post("/genre", varifyAccessToken, varifyAdmin, async(req, res)=> {
+         try {
+          const newGenre = req.body;
+        const result =  await booksCollection.insertOne(newGenre)
+           res.status(201).send(result);
+
+      } catch (error) {
+        res.status(500).send({ message: "Failed to fetch genre", error });
+      }
+    });
+
+    app.put("/genre/:id", varifyAccessToken, varifyAdmin, async(req, res)=> {
+      try {
+        const { id} = req.params;
+         const updatedGenre = req.body;
+          const updatedDoc = {
+            $set: updatedGenre,
+          };
+
+          const query = {_id : new ObjectId(id)};
+          const result = await genreCollection.updateOne(query, updatedDoc);
+
+          res.status(201).send(result);
+        
+      } catch (error) {
+        res.status(500).send({ message: "Failed to fetch genre", error })
+      }
+    })
+
+    app.delete("/genre/:id", varifyAccessToken, async(req, res)=> {
+      try {
+        const {id} = req.params;
+         const query = { _id: new ObjectId(id) };
+          const result = await genreCollection.deleteOne(query);
+          res.status(204).send(result);
+      } catch (error) {
+         res.status(500).send({ message: "Failed to update genre", error })
+      }
     })
 
 
 
 
 
-    
+
+
   } catch (error) {
     res.status(500).send({ message: "Failed to fetch admin stats", error });
   } finally {

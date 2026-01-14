@@ -121,6 +121,7 @@ async function run() {
         res.status(201).send({
           message: "User created successfully",
           userId: result.insertedId,
+          
         });
       } catch (error) {
         console.error("Error creating user:", error);
@@ -158,11 +159,16 @@ async function run() {
         const { email, password } = req.body;
 
         const user = await usersCollection.findOne({ email });
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+          
+    if (!user) {
+      return res.status(401).send({ message: "Authentication failed" });
+    }
 
-        if (!user || !isPasswordValid) {
-          return res.status(401).send({ message: "Authentication failed" });
-        }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).send({ message: "Authentication failed" });
+    }
         const accessToken = jwt.sign(
           {
             id: user._id,
